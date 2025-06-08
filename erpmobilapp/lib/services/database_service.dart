@@ -25,6 +25,7 @@ class DatabaseService {
     Hive.registerAdapter(CargoInformationAdapter());
     Hive.registerAdapter(OrderAdapter());
     Hive.registerAdapter(CustomerAdapter());
+    Hive.registerAdapter(NotificationTypeAdapter());
     Hive.registerAdapter(NotificationAdapter());
     await Hive.openBox<Employee>(employeesBox);
     await Hive.openBox<InventoryItem>(inventoryBox);
@@ -56,10 +57,23 @@ class DatabaseService {
   static Future<Employee?> login(String email, String password) async {
     final box = Hive.box<Employee>(employeesBox);
     try {
-      return box.values.firstWhere(
+      print('=== DEBUG LOGIN ===');
+      print('Attempting login with email: $email');
+      print('Password: $password');
+      print('Total employees in database: ${box.values.length}');
+      
+      for (var emp in box.values) {
+        print('Employee: ${emp.email} | ${emp.password}');
+      }
+      
+      final employee = box.values.firstWhere(
         (e) => e.email == email && e.password == password,
       );
+      print('Found employee: ${employee.name}');
+      return employee;
     } catch (e) {
+      print('Login error: $e');
+      print('No matching employee found');
       return null;
     }
   }

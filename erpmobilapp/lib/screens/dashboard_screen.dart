@@ -109,7 +109,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   backgroundColor: Color(0xFF013220),
                   flexibleSpace: FlexibleSpaceBar(
                     title: Text(
-                      'Dashboard',
+                      '',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -257,21 +257,21 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           '₺${dashboardData.totalRevenue.toStringAsFixed(0)}',
           Icons.trending_up,
           [Color(0xFF4CAF50), Color(0xFF66BB6A)],
-          '+12.5%',
+          '',
         ),
         _buildStatCard(
           'Toplam Gider',
           '₺${dashboardData.totalExpenses.toStringAsFixed(0)}',
           Icons.trending_down,
           [Color(0xFFF44336), Color(0xFFEF5350)],
-          '+8.2%',
+          '',
         ),
         _buildStatCard(
           'Aktif Siparişler',
           dashboardData.totalOrders.toString(),
           Icons.shopping_cart,
           [Color(0xFF2196F3), Color(0xFF42A5F5)],
-          '+3 yeni',
+          '',
         ),
         _buildStatCard(
           'Çalışan Sayısı',

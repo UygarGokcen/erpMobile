@@ -45,7 +45,7 @@ class _NotificationsDrawerState extends State<NotificationsDrawer> {
     }
   }
 
-  void _addBasicSampleNotifications() async {
+  Future<void> _addBasicSampleNotifications() async {
     final sampleNotifications = [
       NotificationModel.Notification(
         id: 1,

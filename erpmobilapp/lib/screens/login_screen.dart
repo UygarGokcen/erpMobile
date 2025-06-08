@@ -30,40 +30,56 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _login() async {
+    // Debug message on screen
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Login button pressed - starting validation...')),
+    );
+    
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
       });
 
+      // Debug message on screen
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Validation passed - calling database...')),
+      );
+
       try {
+        print('Starting login process...');
         Employee? loggedInEmployee = await DatabaseService.login(
-          _emailController.text,
-          _passwordController.text,
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+        );
+        
+        print('Login completed. Result: ${loggedInEmployee != null ? 'Success' : 'Failed'}');
+        
+        // Debug message on screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Database call completed: ${loggedInEmployee != null ? 'Success' : 'Failed'}')),
         );
 
         if (loggedInEmployee != null) {
-          // Log successful login
-          LoggingService.logAction(
-            userId: loggedInEmployee.id.toString(),
-            userName: loggedInEmployee.name,
-            action: LogAction.login,
-            entityType: LogEntityType.user,
-            entityId: loggedInEmployee.id.toString(),
-            description: 'Kullanıcı sisteme giriş yaptı: ${loggedInEmployee.name}',
-          );
-
-          // Create login notification
-          await NotificationService.createLoginNotification(
-            loggedInEmployee.id.toString(),
-            loggedInEmployee.name,
-          );
+          print('Navigating to ERP screen...');
           
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => ERPScreen(currentUser: loggedInEmployee),
-            ),
-          );
+          try {
+            await Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => ERPScreen(currentUser: loggedInEmployee),
+              ),
+            );
+            print('Navigation completed successfully');
+          } catch (navError) {
+            print('Navigation error: $navError');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Navigation error: $navError'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         } else {
+          print('Login failed - showing error message');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Invalid email or password'),
@@ -72,9 +88,10 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } catch (e) {
+        print('Login error: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('An error occurred. Please try again.'),
+            content: Text('An error occurred: $e'),
             backgroundColor: Colors.red,
           ),
         );

@@ -31,6 +31,7 @@ class _ERPScreenState extends State<ERPScreen> {
   @override
   void initState() {
     super.initState();
+    print('ERPScreen initState called for user: ${widget.currentUser.name}');
     _pageController = PageController(initialPage: _selectedIndex);
     _screens = [
       DashboardScreen(),
@@ -41,7 +42,7 @@ class _ERPScreenState extends State<ERPScreen> {
         'role': widget.currentUser.role.toString()
       }),
       FinanceScreen(currentUser: widget.currentUser),
-              OrdersScreen(currentUser: widget.currentUser),
+      OrdersScreen(currentUser: widget.currentUser),
       CustomersScreen(currentUser: widget.currentUser),
       MessagingScreen(currentUser: widget.currentUser),
     ];
@@ -84,30 +85,24 @@ class _ERPScreenState extends State<ERPScreen> {
                 );
               },
             ),
-          Builder(
-            builder: (BuildContext context) {
-              return IconButton(
-                icon: Icon(Icons.notifications),
-                tooltip: 'Bildirimler',
-                onPressed: () {
-                  Scaffold.of(context).openEndDrawer();
-                },
-              );
-            },
-          ),
+          // Builder(
+          //   builder: (BuildContext context) {
+          //     return IconButton(
+          //       icon: Icon(Icons.notifications),
+          //       tooltip: 'Bildirimler',
+          //       onPressed: () {
+          //         Scaffold.of(context).openEndDrawer();
+          //       },
+          //     );
+          //   },
+          // ),
           IconButton(
             icon: Icon(Icons.person),
             onPressed: () {
-              if (widget.currentUser != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ProfileScreen(currentUser: widget.currentUser)),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('User data not available')),
-                );
-              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ProfileScreen(currentUser: widget.currentUser)),
+              );
             },
           ),
         ],
@@ -156,7 +151,7 @@ class _ERPScreenState extends State<ERPScreen> {
         currentIndex: _selectedIndex < 7 ? _selectedIndex : 0,
         onTap: _onItemTapped,
       ),
-      endDrawer: NotificationsDrawer(currentUser: widget.currentUser),
+      // endDrawer: NotificationsDrawer(currentUser: widget.currentUser),
     );
   }
 }

@@ -6,58 +6,6 @@ part of 'notification.dart';
 // TypeAdapterGenerator
 // **************************************************************************
 
-class NotificationAdapter extends TypeAdapter<Notification> {
-  @override
-  final int typeId = 9;
-
-  @override
-  Notification read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return Notification(
-      id: fields[0] as int,
-      type: fields[1] as NotificationType,
-      message: fields[2] as String,
-      timestamp: fields[3] as DateTime,
-      isRead: fields[4] as bool,
-      entityId: fields[5] as String?,
-      userId: fields[6] as String?,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, Notification obj) {
-    writer
-      ..writeByte(7)
-      ..writeByte(0)
-      ..write(obj.id)
-      ..writeByte(1)
-      ..write(obj.type)
-      ..writeByte(2)
-      ..write(obj.message)
-      ..writeByte(3)
-      ..write(obj.timestamp)
-      ..writeByte(4)
-      ..write(obj.isRead)
-      ..writeByte(5)
-      ..write(obj.entityId)
-      ..writeByte(6)
-      ..write(obj.userId);
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is NotificationAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}
-
 class NotificationTypeAdapter extends TypeAdapter<NotificationType> {
   @override
   final int typeId = 8;
@@ -143,6 +91,58 @@ class NotificationTypeAdapter extends TypeAdapter<NotificationType> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is NotificationTypeAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class NotificationAdapter extends TypeAdapter<Notification> {
+  @override
+  final int typeId = 9;
+
+  @override
+  Notification read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return Notification(
+      id: fields[0] as int,
+      type: fields[1] as NotificationType,
+      message: fields[2] as String,
+      timestamp: fields[3] as DateTime,
+      isRead: fields[4] as bool,
+      entityId: fields[5] as String?,
+      userId: fields[6] as String?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Notification obj) {
+    writer
+      ..writeByte(7)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.type)
+      ..writeByte(2)
+      ..write(obj.message)
+      ..writeByte(3)
+      ..write(obj.timestamp)
+      ..writeByte(4)
+      ..write(obj.isRead)
+      ..writeByte(5)
+      ..write(obj.entityId)
+      ..writeByte(6)
+      ..write(obj.userId);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NotificationAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

@@ -35,16 +35,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       try {
         Employee newEmployee = Employee(
           id: DateTime.now().millisecondsSinceEpoch,
-          name: _nameController.text,
-          email: _emailController.text,
-          password: _passwordController.text,
+          name: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
           role: _userRole,
         );
 
         await DatabaseService.addEmployee(newEmployee);
+        
+        print('Employee added successfully: ${newEmployee.email}');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration successful!')),
+          SnackBar(content: Text('Registration successful! You can now login.')),
         );
         Navigator.of(context).pop();
       } catch (e) {

@@ -18,15 +18,36 @@ class OrdersScreen extends StatefulWidget {
   _OrdersScreenState createState() => _OrdersScreenState();
 }
 
-class _OrdersScreenState extends State<OrdersScreen> {
+class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMixin {
   List<Order> activeOrders = [];
   List<Order> previousOrders = [];
+  List<Order> filteredOrders = [];
   bool showPreviousOrders = false;
+  String searchQuery = '';
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      duration: Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
     _loadOrders();
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _searchController.dispose();
+    super.dispose();
   }
 
 void _loadOrders() async {
@@ -36,132 +57,572 @@ void _loadOrders() async {
   setState(() {
     activeOrders = active;
     previousOrders = previous;
-  });
-}
+      _filterOrders();
+    });
+  }
 
+  void _filterOrders() {
+    List<Order> allOrders = showPreviousOrders 
+        ? [...activeOrders, ...previousOrders] 
+        : activeOrders;
+    
+    if (searchQuery.isEmpty) {
+      filteredOrders = allOrders;
+    } else {
+      filteredOrders = allOrders.where((order) {
+        return order.customer.name?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false;
+      }).toList();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            child: activeOrders.isEmpty 
-              ? Center(
-                  child: Text('No active orders. Add using the + button.'),
-                )
-              : ListView.builder(
-                  itemCount: activeOrders.length,
-                  itemBuilder: (context, index) {
-                    return _buildOrderTile(activeOrders[index]);
-                  },
+      backgroundColor: Colors.grey.shade50,
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: CustomScrollView(
+          slivers: [
+            // Modern Header with Stats
+            SliverToBoxAdapter(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF013220), Color(0xFF015a3a)],
+                  ),
                 ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header Title
+                        Row(
+        children: [
+                            Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.shopping_cart_outlined,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+          Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Siparişler',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Tüm siparişlerinizi yönetin',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.add_circle_outline, color: Colors.white, size: 28),
+                              onPressed: _addNewOrder,
+                            ),
+                          ],
+                        ),
+                        
+                        SizedBox(height: 24),
+                        
+                        // Stats Cards
+                        _buildStatsCards(),
+                        
+                        SizedBox(height: 20),
+                        
+                        // Search Bar
+                        _buildSearchBar(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            // Filter Tabs
+            SliverToBoxAdapter(
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: _buildFilterTabs(),
+              ),
+            ),
+            
+            // Orders List
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: filteredOrders.isEmpty 
+                  ? _buildEmptyState()
+                  : _buildOrdersList(),
+              ),
+            ),
+            
+            SliverToBoxAdapter(child: SizedBox(height: 80)), // Space for FAB
+          ],
+        ),
+      ),
+      floatingActionButton: _buildModernFAB(),
+    );
+  }
+
+  Widget _buildStatsCards() {
+    int pendingCount = activeOrders.where((o) => o.status == OrderStatus.pending).length;
+    int processingCount = activeOrders.where((o) => o.status == OrderStatus.processing).length;
+    int completedCount = previousOrders.where((o) => o.status == OrderStatus.completed).length;
+    
+    return Row(
+      children: [
+        Expanded(child: _buildStatCard('Bekleyen', pendingCount.toString(), Icons.schedule, Colors.orange)),
+        SizedBox(width: 12),
+        Expanded(child: _buildStatCard('İşlemde', processingCount.toString(), Icons.sync, Colors.blue)),
+        SizedBox(width: 12),
+        Expanded(child: _buildStatCard('Tamamlanan', completedCount.toString(), Icons.check_circle, Colors.green)),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.white, size: 24),
+          SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          _buildPreviousOrdersSection(),
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.add),
-        onPressed: () {
-          _addNewOrder();
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: 'Müşteri adına göre ara...',
+          hintStyle: TextStyle(color: Colors.white60),
+          prefixIcon: Icon(Icons.search, color: Colors.white60),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+        onChanged: (value) {
+          setState(() {
+            searchQuery = value;
+            _filterOrders();
+          });
         },
       ),
     );
   }
 
-  Widget _buildOrderTile(Order order) {
-    return ListTile(
-      leading: Icon(Icons.shopping_cart, color: _getOrderColor(order.status)),
-      title: Text(order.customer.name ?? 'Unnamed Customer'),
-      subtitle: Text('Total: \$${order.totalAmount?.toStringAsFixed(2) ?? '0.00'}'),
-      trailing: Chip(
-        label: Text(order.status.toString().split('.').last),
-        backgroundColor: _getOrderColor(order.status),
-      ),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => OrderDetailScreen(order: order),
+  Widget _buildFilterTabs() {
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                showPreviousOrders = false;
+                _filterOrders();
+              });
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: !showPreviousOrders ? Color(0xFF013220) : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Color(0xFF013220),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                'Aktif Siparişler (${activeOrders.length})',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: !showPreviousOrders ? Colors.white : Color(0xFF013220),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
-        ).then((updatedOrder) {
-          if (updatedOrder != null) {
-            // Sipariş güncellendiyse OrderService'i güncelleyelim
-            OrderService.updateOrder(updatedOrder);
-            _logOrderAction(LogAction.update, updatedOrder.id.toString(), 'Sipariş güncellendi: ${updatedOrder.customer.name}');
-          }
-          // Siparişleri yeniden yükleyelim
-          _loadOrders();
-        });
-      },
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                showPreviousOrders = true;
+                _filterOrders();
+              });
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: showPreviousOrders ? Color(0xFF013220) : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Color(0xFF013220),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                'Geçmiş Siparişler (${previousOrders.length})',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: showPreviousOrders ? Colors.white : Color(0xFF013220),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrdersList() {
+    return Column(
+      children: filteredOrders.map((order) => _buildModernOrderCard(order)).toList(),
+    );
+  }
+
+  Widget _buildModernOrderCard(Order order) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _navigateToOrderDetail(order),
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Row
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _getOrderColor(order.status).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        _getOrderIcon(order.status),
+                        color: _getOrderColor(order.status),
+                        size: 20,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            order.customer.name ?? 'Unnamed Customer',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF013220),
+                            ),
+                          ),
+                          Text(
+                            'Sipariş #${order.id}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _getOrderColor(order.status),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _getOrderStatusText(order.status),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                SizedBox(height: 16),
+                
+                // Amount and Date Row
+                Row(
+                  children: [
+                    Icon(Icons.attach_money, color: Colors.grey.shade600, size: 16),
+                    SizedBox(width: 4),
+                    Text(
+                      '₺${order.totalAmount?.toStringAsFixed(2) ?? '0.00'}',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF013220),
+                      ),
+                    ),
+                    Spacer(),
+                    Icon(Icons.access_time, color: Colors.grey.shade600, size: 16),
+                    SizedBox(width: 4),
+                    Text(
+                      'Bugün', // order.date gibi bir alan eklenebilir
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                if (order.items?.isNotEmpty == true) ...[
+                  SizedBox(height: 12),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.inventory_2_outlined, color: Colors.grey.shade600, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          '${order.items!.length} ürün',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        Spacer(),
+                        Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 12),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: EdgeInsets.all(40),
+      child: Center(
+        child: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Color(0xFF013220).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.shopping_cart_outlined,
+                size: 48,
+                color: Color(0xFF013220),
+              ),
+            ),
+            SizedBox(height: 20),
+            Text(
+              showPreviousOrders ? 'Henüz geçmiş sipariş yok' : 'Henüz aktif sipariş yok',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF013220),
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Yeni sipariş oluşturmak için + butonunu kullanın',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernFAB() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF013220), Color(0xFF015a3a)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0xFF013220).withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: FloatingActionButton.extended(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        onPressed: _addNewOrder,
+        icon: Icon(Icons.add, color: Colors.white),
+        label: Text(
+          'Yeni Sipariş',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 
   Color _getOrderColor(OrderStatus status) {
     switch (status) {
       case OrderStatus.pending:
-        return Colors.orange;
+        return Colors.orange.shade600;
       case OrderStatus.processing:
-        return Colors.blue;
+        return Colors.blue.shade600;
       case OrderStatus.completed:
-        return Colors.green;
+        return Colors.green.shade600;
       case OrderStatus.cancelled:
-        return Colors.red;
+        return Colors.red.shade600;
       default:
-        return Colors.grey;
+        return Colors.grey.shade600;
     }
   }
 
-  Widget _buildPreviousOrdersSection() {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.grey[300]!)),
+  IconData _getOrderIcon(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return Icons.schedule;
+      case OrderStatus.processing:
+        return Icons.sync;
+      case OrderStatus.completed:
+        return Icons.check_circle;
+      case OrderStatus.cancelled:
+        return Icons.cancel;
+      default:
+        return Icons.help;
+    }
+  }
+
+  String _getOrderStatusText(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return 'Bekleyen';
+      case OrderStatus.processing:
+        return 'İşlemde';
+      case OrderStatus.completed:
+        return 'Tamamlandı';
+      case OrderStatus.cancelled:
+        return 'İptal';
+      default:
+        return 'Bilinmiyor';
+    }
+  }
+
+  void _navigateToOrderDetail(Order order) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OrderDetailScreen(order: order),
       ),
-      child: Column(
-        children: [
-          ListTile(
-            title: Text('Previous Orders'),
-            trailing: Icon(showPreviousOrders ? Icons.expand_less : Icons.expand_more),
-            onTap: () {
-              setState(() {
-                showPreviousOrders = !showPreviousOrders;
-              });
-            },
-          ),
-          if (showPreviousOrders)
-            previousOrders.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Center(
-                    child: Text('No previous orders.'),
-                  ),
-                )
-              : ListView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  itemCount: previousOrders.length,
-                  itemBuilder: (context, index) {
-                    return _buildOrderTile(previousOrders[index]);
-                  },
-                ),
-        ],
-      ),
-    );
+    ).then((updatedOrder) {
+      if (updatedOrder != null) {
+        OrderService.updateOrder(updatedOrder);
+        _logOrderAction(LogAction.update, updatedOrder.id.toString(), 'Sipariş güncellendi: ${updatedOrder.customer.name}');
+      }
+      _loadOrders();
+    });
   }
 
   void _addNewOrder() {
-    // Müşteriler yüklenmiş mi kontrol et
     final customers = CustomerService.getCustomers();
     if (customers.isEmpty) {
-      // Müşteri yoksa bilgilendirme mesajı göster
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please add customers before creating an order'),
+          content: Text('Sipariş oluşturmadan önce müşteri eklemelisiniz'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           action: SnackBarAction(
-            label: 'Go to Customers',
+            label: 'Müşteri Ekle',
+            textColor: Colors.white,
             onPressed: () {
-              // Burada müşteriler ekranına yönlendirebilirsiniz
-              // Navigator.pushNamed(context, '/customers');
+              // Navigate to customers screen
             },
           ),
         ),
@@ -178,10 +639,8 @@ void _loadOrders() async {
       ),
     ).then((newOrder) {
       if (newOrder != null) {
-        // Yeni siparişi OrderService'e ekleyelim
         OrderService.addOrder(newOrder);
         _logOrderAction(LogAction.create, newOrder.id.toString(), 'Yeni sipariş oluşturuldu: ${newOrder.customer.name}');
-        // Siparişleri yeniden yükleyelim
         _loadOrders();
       }
     });
